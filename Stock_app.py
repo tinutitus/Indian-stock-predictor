@@ -1,18 +1,19 @@
 import requests
-import pandas as pd
-import datetime
 
 # -----------------------------
-# Step 1: Fetch NSE data for 1 stock
+# Step 1: Pick a stock
 # -----------------------------
-symbol = "TATAPOWER"
+symbol = "TATAPOWER"   # Try changing to RELIANCE, INFY, HDFCBANK, etc.
 url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
 
 headers = {
-    "User-Agent": "Mozilla/5.0",
+    "User-Agent": "Mozilla/5.0",  # required or NSE blocks the request
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+# -----------------------------
+# Step 2: Fetch from NSE
+# -----------------------------
 session = requests.Session()
 response = session.get(url, headers=headers)
 
@@ -22,7 +23,7 @@ if response.status_code == 200:
     change = data["priceInfo"]["change"]
     pchange = data["priceInfo"]["pChange"]
 
-    print(f"✅ {symbol}")
+    print(f"✅ Stock: {symbol}")
     print(f"Last Price: {last_price}")
     print(f"Change: {change} ({pchange}%)")
 else:
