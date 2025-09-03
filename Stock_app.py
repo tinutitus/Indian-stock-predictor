@@ -3,10 +3,9 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-import datetime, requests
+import datetime, requests, os, platform, subprocess
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import ColorScaleRule
 
 # -----------------------------
@@ -61,7 +60,7 @@ for ticker in tickers:
         df["Return_20d"] = df["Adj Close"].pct_change(20)
         df["Volatility"] = df["Adj Close"].pct_change().rolling(20).std()
 
-        # RSI (simplified)
+        # RSI
         delta = df["Adj Close"].diff()
         gain = delta.clip(lower=0).rolling(14).mean()
         loss = -delta.clip(upper=0).rolling(14).mean()
@@ -161,7 +160,7 @@ if not pred_df.empty:
     for sheet_name in ["All Predictions","Shortlist"]:
         ws = wb[sheet_name]
 
-        # Red/Green fill for PctChange columns
+        # Conditional formatting for PctChange
         for col_letter in ["G","H"]:  # PctChange_1M, PctChange_1Y
             ws.conditional_formatting.add(
                 f"{col_letter}2:{col_letter}{ws.max_row}",
@@ -180,11 +179,19 @@ if not pred_df.empty:
 
     wb.save(excel_file)
 
+    # Auto-open Excel file
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.startfile(excel_file)
+        elif system == "Darwin":  # macOS
+            subprocess.call(["open", excel_file])
+        else:  # Linux
+            subprocess.call(["xdg-open", excel_file])
+    except Exception as e:
+        print("⚠️ Could not auto-open Excel:", e)
+
     print("✅ Analysis complete!")
-    print("\n--- All Predictions (sample) ---")
-    print(pred_df.head(10))
-    print("\n--- Shortlist (sample) ---")
-    print(shortlist.head(10))
-    print(f"\n📊 Excel with formatting saved as {excel_file}")
+    print(f"📊 Excel with formatting saved as {excel_file} (auto-opened)")
 else:
     print("No data processed.")
