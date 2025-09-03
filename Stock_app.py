@@ -1,10 +1,10 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 import datetime, requests, os, platform, subprocess
 from io import BytesIO
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
 from openpyxl import load_workbook
 from openpyxl.formatting.rule import ColorScaleRule
 
@@ -55,10 +55,25 @@ for ticker in tickers:
         if df.empty:
             continue
 
-        # Features
+        # Technical Indicators
         df["Return_5d"] = df["Adj Close"].pct_change(5)
         df["Return_20d"] = df["Adj Close"].pct_change(20)
         df["Volatility"] = df["Adj Close"].pct_change().rolling(20).std()
+
+        # Moving Averages
+        df["MA20"] = df["Adj Close"].rolling(20).mean()
+        df["MA50"] = df["Adj Close"].rolling(50).mean()
+        df["MA200"] = df["Adj Close"].rolling(200).mean()
+
+        # MACD
+        ema12 = df["Adj Close"].ewm(span=12, adjust=False).mean()
+        ema26 = df["Adj Close"].ewm(span=26, adjust=False).mean()
+        df["MACD"] = ema12 - ema26
+
+        # Bollinger Band %B
+        df["BB_up"] = df["MA20"] + 2*df["Adj Close"].rolling(20).std()
+        df["BB_down"] = df["MA20"] - 2*df["Adj Close"].rolling(20).std()
+        df["BB_pct"] = (df["Adj Close"] - df["BB_down"]) / (df["BB_up"] - df["BB_down"])
 
         # RSI
         delta = df["Adj Close"].diff()
@@ -67,23 +82,34 @@ for ticker in tickers:
         rs = gain / (loss + 1e-9)
         df["RSI"] = 100 - (100 / (1 + rs))
 
+        # Volume % change
+        df["Vol_Change"] = df["Volume"].pct_change()
+
         # Target variable
         df["Target"] = (df["Adj Close"].shift(-20) / df["Adj Close"] - 1) * 100
         df["Target"] = (df["Target"] >= target_pct).astype(int)
         df.dropna(inplace=True)
 
-        if len(df) < 50:
+        if len(df) < 60:
             continue
 
-        # ML
-        features = ["Return_5d", "Return_20d", "Volatility", "RSI"]
+        # Features
+        features = ["Return_5d","Return_20d","Volatility",
+                    "MA20","MA50","MA200","MACD","BB_pct",
+                    "RSI","Vol_Change"]
         X = df[features]
         y = df["Target"]
 
+        # Train-test split
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
+
+        # Model = XGBoost
+        model = XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05,
+                              subsample=0.8, colsample_bytree=0.8,
+                              use_label_encoder=False, eval_metric="logloss", random_state=42)
         model.fit(X_train, y_train)
 
+        # Latest prediction
         latest_features = X.iloc[-1:].values
         prob_up = model.predict_proba(latest_features)[0][1]
 
@@ -119,6 +145,9 @@ for ticker in tickers:
             "Momentum_20d": round(momentum20, 3),
             "Volatility": round(df["Volatility"].iloc[-1], 3),
             "RSI": round(df["RSI"].iloc[-1], 2),
+            "MACD": round(df["MACD"].iloc[-1], 3),
+            "BB_pct": round(df["BB_pct"].iloc[-1], 3),
+            "Vol_Change": round(df["Vol_Change"].iloc[-1], 3),
             "ProbUp1M": round(prob_up, 3),
             "FinalScore": round(final_score, 3)
         })
