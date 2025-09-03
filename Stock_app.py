@@ -159,7 +159,7 @@ universe = sorted(list(dict.fromkeys(universe)))
 if limit_universe and limit_universe > 0:
     universe = universe[:limit_universe]
 
-st.write(f"Universe size: *{len(universe)}*")
+st.write(f"Universe size: **{len(universe)}**")
 if not universe:
     st.warning("No tickers selected. Choose indices in the sidebar.")
     st.stop()
