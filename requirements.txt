@@ -1,7 +1,5 @@
-yfinance
 pandas
 numpy
 scikit-learn
-xgboost
-openpyxl
 requests
+openpyxl
