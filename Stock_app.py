@@ -5,6 +5,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import datetime, requests
 from io import BytesIO
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+from openpyxl.formatting.rule import ColorScaleRule
 
 # -----------------------------
 # Step 1: Fetch Midcap + Smallcap tickers dynamically
@@ -65,7 +68,7 @@ for ticker in tickers:
         rs = gain / (loss + 1e-9)
         df["RSI"] = 100 - (100 / (1 + rs))
 
-        # Target variable: 1 if price rises >= target_pct in next 20 days
+        # Target variable
         df["Target"] = (df["Adj Close"].shift(-20) / df["Adj Close"] - 1) * 100
         df["Target"] = (df["Target"] >= target_pct).astype(int)
         df.dropna(inplace=True)
@@ -99,7 +102,7 @@ for ticker in tickers:
         pctchange_1m = round((diff_1m / current_price) * 100, 2) if current_price else 0
         pctchange_1y = round((diff_1y / current_price) * 100, 2) if current_price else 0
 
-        # Final Score (blend of ML + Momentum + RSI)
+        # Final Score (blend ML + Momentum20 + RSI_norm)
         rsi_norm = (df["RSI"].iloc[-1] / 100) if not np.isnan(df["RSI"].iloc[-1]) else 0.5
         momentum20 = df["Return_20d"].iloc[-1] if not np.isnan(df["Return_20d"].iloc[-1]) else 0
         final_score = (0.5 * prob_up) + (0.25 * momentum20) + (0.25 * rsi_norm)
@@ -129,7 +132,7 @@ for ticker in tickers:
 pred_df = pd.DataFrame(all_results)
 
 if not pred_df.empty:
-    # Rank by FinalScore (highest = 1)
+    # Rank by FinalScore
     pred_df["Rank"] = pred_df["FinalScore"].rank(ascending=False, method="dense").astype(int)
 
     # Column order
@@ -140,17 +143,48 @@ if not pred_df.empty:
                                                     "FinalScore","Rank"]]
     pred_df = pred_df[cols]
 
-    # Shortlist (Price ≤ 1000 & Prob ≥ threshold)
+    # Shortlist
     shortlist = pred_df[(pred_df["Price"] <= price_limit) & (pred_df["ProbUp1M"] >= prob_threshold)]
     shortlist = shortlist.sort_values(by="FinalScore", ascending=False)
 
+    # Save CSV
     pred_df.to_csv("all_predictions.csv", index=False)
     shortlist.to_csv("shortlist.csv", index=False)
+
+    # Save Excel with formatting
+    excel_file = "predictions.xlsx"
+    with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
+        pred_df.to_excel(writer, sheet_name="All Predictions", index=False)
+        shortlist.to_excel(writer, sheet_name="Shortlist", index=False)
+
+    wb = load_workbook(excel_file)
+    for sheet_name in ["All Predictions","Shortlist"]:
+        ws = wb[sheet_name]
+
+        # Red/Green fill for PctChange columns
+        for col_letter in ["G","H"]:  # PctChange_1M, PctChange_1Y
+            ws.conditional_formatting.add(
+                f"{col_letter}2:{col_letter}{ws.max_row}",
+                ColorScaleRule(start_type="num", start_value=-50, start_color="FF0000",
+                               mid_type="num", mid_value=0, mid_color="FFFFFF",
+                               end_type="num", end_value=50, end_color="00FF00")
+            )
+
+        # Gradient for FinalScore
+        ws.conditional_formatting.add(
+            f"I2:I{ws.max_row}",
+            ColorScaleRule(start_type="num", start_value=0, start_color="FF0000",
+                           mid_type="num", mid_value=0.5, mid_color="FFFF00",
+                           end_type="num", end_value=1, end_color="00FF00")
+        )
+
+    wb.save(excel_file)
 
     print("✅ Analysis complete!")
     print("\n--- All Predictions (sample) ---")
     print(pred_df.head(10))
-    print(f"\n--- Shortlist (Price ≤ ₹{price_limit} & Prob ≥ {prob_threshold}) ---")
+    print("\n--- Shortlist (sample) ---")
     print(shortlist.head(10))
+    print(f"\n📊 Excel with formatting saved as {excel_file}")
 else:
     print("No data processed.")
