@@ -123,11 +123,14 @@ for ticker in tickers:
 pred_df = pd.DataFrame(all_results)
 
 if not pred_df.empty:
-    # Column order: Company → Price → Expected1M → Expected1Y → Diff1M → Diff1Y → PctChange1M → PctChange1Y → others
+    # Rank by ProbUp1M (highest = 1)
+    pred_df["Rank"] = pred_df["ProbUp1M"].rank(ascending=False, method="dense").astype(int)
+
+    # Column order: Company → Price → Expected1M → Expected1Y → Diff1M → Diff1Y → PctChange1M → PctChange1Y → Rank → others
     cols = ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
-            "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y"] + \
+            "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y","Rank"] + \
            [c for c in pred_df.columns if c not in ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
-                                                    "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y"]]
+                                                    "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y","Rank"]]
     pred_df = pred_df[cols]
 
     # Shortlist (Price ≤ 1000 & Prob ≥ threshold)
