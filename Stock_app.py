@@ -1,4 +1,22 @@
+[2:15 pm, 3/9/2025] Tinu: # ---------------------------
+# ONE-MONTH ML FORECAST: Predict next ~20 trading day (1-month) return > target_pct
 # ---------------------------
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+
+st.subheader("🔮 One-month ML Forecast (screen for investable stocks ≤ ₹500)")
+
+# UI inputs
+target_pct = st.sidebar.number_input("Target return in 1 month (%)", value=5.0, step=0.5)
+prob_threshold = st.sidebar.slider("Probability threshold for shortlist", 0.50, 0.95, 0.65, 0.05)
+max_tickers_for_ml = st.sidebar.number_input("Max tickers to use for ML (0=all)", min_value=0, value=0, step=10)
+
+# Respect user limit
+ml_universe =…
+[2:16 pm, 3/9/2025] Tinu: scikit-learn
+[2:28 pm, 3/9/2025] Tinu: # ---------------------------
 # ONE-MONTH ML FORECAST: Predict next ~20 trading day (1-month) return > target_pct
 # ---------------------------
 from sklearn.ensemble import RandomForestClassifier
