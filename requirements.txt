@@ -1,9 +1,7 @@
-scikit-learn
-streamlit
 yfinance
-GoogleNews
-textblob
 pandas
-matplotlib
+numpy
+scikit-learn
+xgboost
 openpyxl
 requests
