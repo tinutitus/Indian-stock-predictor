@@ -4,7 +4,6 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import datetime
-from openpyxl import Workbook
 
 # -----------------------------
 # Step 1: Choose stock
@@ -23,6 +22,18 @@ df = yf.download(symbol, start=start, end=end, progress=False)
 if df.empty:
     print("⚠️ No data found!")
     exit()
+
+# Flatten MultiIndex if present
+if isinstance(df.columns, pd.MultiIndex):
+    df.columns = [c[0] for c in df.columns]
+
+# Ensure Adj Close exists
+if "Adj Close" not in df.columns:
+    if "Close" in df.columns:
+        df["Adj Close"] = df["Close"]
+    else:
+        print("⚠️ No Adj Close or Close column available")
+        exit()
 
 # -----------------------------
 # Step 3: Features
@@ -43,6 +54,10 @@ target_pct = 5
 df["Target"] = (df["Adj Close"].shift(-20) / df["Adj Close"] - 1) * 100
 df["Target"] = (df["Target"] >= target_pct).astype(int)
 df.dropna(inplace=True)
+
+if len(df) < 50:
+    print("⚠️ Not enough data for ML training")
+    exit()
 
 # -----------------------------
 # Step 4: Train ML Model
