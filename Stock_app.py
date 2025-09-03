@@ -95,6 +95,10 @@ for ticker in tickers:
         diff_1m = round(expected_price_1m - current_price, 2)
         diff_1y = round(expected_price_1y - current_price, 2)
 
+        # Percentage Changes
+        pctchange_1m = round((diff_1m / current_price) * 100, 2) if current_price else 0
+        pctchange_1y = round((diff_1y / current_price) * 100, 2) if current_price else 0
+
         all_results.append({
             "Company": ticker,
             "Price": current_price,
@@ -102,6 +106,8 @@ for ticker in tickers:
             "ExpectedPrice_1Y": expected_price_1y,
             "Diff_1M": diff_1m,
             "Diff_1Y": diff_1y,
+            "PctChange_1M": pctchange_1m,
+            "PctChange_1Y": pctchange_1y,
             "Momentum_5d": round(df["Return_5d"].iloc[-1], 3),
             "Momentum_20d": round(df["Return_20d"].iloc[-1], 3),
             "Volatility": round(df["Volatility"].iloc[-1], 3),
@@ -117,9 +123,11 @@ for ticker in tickers:
 pred_df = pd.DataFrame(all_results)
 
 if not pred_df.empty:
-    # Column order: Company → Price → Expected1M → Expected1Y → Diff1M → Diff1Y → others
-    cols = ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y","Diff_1M","Diff_1Y"] + \
-           [c for c in pred_df.columns if c not in ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y","Diff_1M","Diff_1Y"]]
+    # Column order: Company → Price → Expected1M → Expected1Y → Diff1M → Diff1Y → PctChange1M → PctChange1Y → others
+    cols = ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
+            "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y"] + \
+           [c for c in pred_df.columns if c not in ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
+                                                    "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y"]]
     pred_df = pred_df[cols]
 
     # Shortlist (Price ≤ 1000 & Prob ≥ threshold)
