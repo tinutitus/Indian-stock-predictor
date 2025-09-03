@@ -1,9 +1,1 @@
-streamlit
-yfinance
-GoogleNews
-textblob
-pandas
-matplotlib
-openpyxl
-requests
 scikit-learn
