@@ -1,33 +1,19 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import datetime, requests, os, platform, subprocess
-from io import BytesIO
+import datetime
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
-from openpyxl import load_workbook
-from openpyxl.formatting.rule import ColorScaleRule
 
 # -----------------------------
-# Step 1: Fetch Midcap tickers only
+# Step 1: Hardcoded Top 20 Midcap tickers
 # -----------------------------
-HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.niftyindices.com/"}
-
-def fetch_index_tickers(url):
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    df = pd.read_csv(BytesIO(r.content))
-    sym_col = [c for c in df.columns if "Symbol" in c or "SYMBOL" in c][0]
-    tickers = df[sym_col].astype(str).str.strip().str.upper() + ".NS"
-    return tickers.tolist()
-
-midcap_url = "https://www.niftyindices.com/IndexConstituent/ind_niftymidcap100list.csv"
-
-try:
-    tickers = fetch_index_tickers(midcap_url)
-except Exception as e:
-    print("⚠️ Could not fetch live tickers, using fallback list:", e)
-    tickers = ["ABB.NS","AUROPHARMA.NS","BANKBARODA.NS","CANBK.NS"]
+tickers = [
+    "ABB.NS","AUROPHARMA.NS","BANKBARODA.NS","CANBK.NS","CHOLAFIN.NS",
+    "CUMMINSIND.NS","GODREJPROP.NS","INDHOTEL.NS","JSWENERGY.NS","LICHSGFIN.NS",
+    "MUTHOOTFIN.NS","OBEROIRLTY.NS","PEL.NS","PNB.NS","RECLTD.NS",
+    "SRF.NS","TATAPOWER.NS","TVSMOTOR.NS","UNIONBANK.NS","YESBANK.NS"
+]
 
 print(f"✅ Loaded {len(tickers)} Midcap tickers")
 
@@ -52,7 +38,7 @@ for i, ticker in enumerate(tickers, start=1):
         if df.empty:
             continue
 
-        # Technical indicators (simplified set)
+        # Technical indicators
         df["Return_5d"] = df["Adj Close"].pct_change(5)
         df["Return_20d"] = df["Adj Close"].pct_change(20)
         df["Volatility"] = df["Adj Close"].pct_change().rolling(20).std()
@@ -124,3 +110,22 @@ for i, ticker in enumerate(tickers, start=1):
         })
     except Exception as e:
         print(f"Error processing {ticker}: {e}")
+
+# -----------------------------
+# Step 4: Save Excel
+# -----------------------------
+pred_df = pd.DataFrame(all_results)
+
+if not pred_df.empty:
+    pred_df["Rank"] = pred_df["FinalScore"].rank(ascending=False, method="dense").astype(int)
+
+    pred_df = pred_df.sort_values(by="Rank")
+
+    excel_file = "predictions.xlsx"
+    with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
+        pred_df.to_excel(writer, sheet_name="All Predictions", index=False)
+
+    print("✅ Analysis complete!")
+    print(f"📊 Excel saved as {excel_file}")
+else:
+    print("⚠️ No data processed.")
