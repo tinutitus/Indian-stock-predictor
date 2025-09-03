@@ -2,16 +2,15 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import datetime
-from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 # -----------------------------
-# Step 1: Tiny ticker list (5 Midcaps for hybrid test)
+# Step 1: Ticker list (5 for quick test)
 # -----------------------------
 tickers = ["ABB.NS", "BANKBARODA.NS", "CANBK.NS", "TATAPOWER.NS", "TVSMOTOR.NS"]
-print(f"✅ Loaded {len(tickers)} tickers for hybrid test")
+print(f"✅ Loaded {len(tickers)} tickers for hybrid test (no XGBoost)")
 
 # -----------------------------
 # Step 2: Parameters
@@ -56,22 +55,21 @@ for i, ticker in enumerate(tickers, start=1):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
         # Models
-        xgb = XGBClassifier(n_estimators=50, max_depth=3, learning_rate=0.1,
-                            use_label_encoder=False, eval_metric="logloss", random_state=42)
         rf = RandomForestClassifier(n_estimators=50, random_state=42)
         lr = LogisticRegression(max_iter=500)
+        gb = GradientBoostingClassifier(n_estimators=50, random_state=42)
 
-        xgb.fit(X_train, y_train)
         rf.fit(X_train, y_train)
         lr.fit(X_train, y_train)
+        gb.fit(X_train, y_train)
 
         # Probabilities
-        p_xgb = xgb.predict_proba(X.iloc[-1:].values)[0][1]
         p_rf = rf.predict_proba(X.iloc[-1:].values)[0][1]
         p_lr = lr.predict_proba(X.iloc[-1:].values)[0][1]
+        p_gb = gb.predict_proba(X.iloc[-1:].values)[0][1]
 
         # Hybrid probability (weighted average)
-        hybrid_prob = (0.5 * p_xgb) + (0.3 * p_rf) + (0.2 * p_lr)
+        hybrid_prob = (0.4 * p_rf) + (0.3 * p_lr) + (0.3 * p_gb)
 
         # Current price
         current_price = round(df["Adj Close"].iloc[-1], 2)
@@ -92,7 +90,7 @@ for i, ticker in enumerate(tickers, start=1):
 # -----------------------------
 pred_df = pd.DataFrame(all_results)
 if not pred_df.empty:
-    print("\n✅ Hybrid Predictions Complete")
+    print("\n✅ Hybrid Predictions (No XGBoost) Complete")
     print(pred_df)
 else:
     print("⚠️ No data processed.")
