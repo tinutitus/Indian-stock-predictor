@@ -5,3 +5,4 @@ textblob
 pandas
 matplotlib
 openpyxl
+requests
