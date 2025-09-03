@@ -99,6 +99,11 @@ for ticker in tickers:
         pctchange_1m = round((diff_1m / current_price) * 100, 2) if current_price else 0
         pctchange_1y = round((diff_1y / current_price) * 100, 2) if current_price else 0
 
+        # Final Score (blend of ML + Momentum + RSI)
+        rsi_norm = (df["RSI"].iloc[-1] / 100) if not np.isnan(df["RSI"].iloc[-1]) else 0.5
+        momentum20 = df["Return_20d"].iloc[-1] if not np.isnan(df["Return_20d"].iloc[-1]) else 0
+        final_score = (0.5 * prob_up) + (0.25 * momentum20) + (0.25 * rsi_norm)
+
         all_results.append({
             "Company": ticker,
             "Price": current_price,
@@ -109,10 +114,11 @@ for ticker in tickers:
             "PctChange_1M": pctchange_1m,
             "PctChange_1Y": pctchange_1y,
             "Momentum_5d": round(df["Return_5d"].iloc[-1], 3),
-            "Momentum_20d": round(df["Return_20d"].iloc[-1], 3),
+            "Momentum_20d": round(momentum20, 3),
             "Volatility": round(df["Volatility"].iloc[-1], 3),
             "RSI": round(df["RSI"].iloc[-1], 2),
-            "ProbUp1M": round(prob_up, 3)
+            "ProbUp1M": round(prob_up, 3),
+            "FinalScore": round(final_score, 3)
         })
     except Exception as e:
         print(f"Error processing {ticker}: {e}")
@@ -123,19 +129,20 @@ for ticker in tickers:
 pred_df = pd.DataFrame(all_results)
 
 if not pred_df.empty:
-    # Rank by ProbUp1M (highest = 1)
-    pred_df["Rank"] = pred_df["ProbUp1M"].rank(ascending=False, method="dense").astype(int)
+    # Rank by FinalScore (highest = 1)
+    pred_df["Rank"] = pred_df["FinalScore"].rank(ascending=False, method="dense").astype(int)
 
-    # Column order: Company → Price → Expected1M → Expected1Y → Diff1M → Diff1Y → PctChange1M → PctChange1Y → Rank → others
+    # Column order
     cols = ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
-            "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y","Rank"] + \
+            "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y","FinalScore","Rank"] + \
            [c for c in pred_df.columns if c not in ["Company","Price","ExpectedPrice_1M","ExpectedPrice_1Y",
-                                                    "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y","Rank"]]
+                                                    "Diff_1M","Diff_1Y","PctChange_1M","PctChange_1Y",
+                                                    "FinalScore","Rank"]]
     pred_df = pred_df[cols]
 
     # Shortlist (Price ≤ 1000 & Prob ≥ threshold)
     shortlist = pred_df[(pred_df["Price"] <= price_limit) & (pred_df["ProbUp1M"] >= prob_threshold)]
-    shortlist = shortlist.sort_values(by="ProbUp1M", ascending=False)
+    shortlist = shortlist.sort_values(by="FinalScore", ascending=False)
 
     pred_df.to_csv("all_predictions.csv", index=False)
     shortlist.to_csv("shortlist.csv", index=False)
